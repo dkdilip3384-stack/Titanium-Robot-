@@ -1,69 +1,58 @@
 ```python
 from kivy.app import App
-from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.widget import Widget
 from kivy.utils import platform
-from kivy.core.window import Window
+from kivy.clock import Clock
 
-class DeliveryTrackerApp(App):
+class WebViewApp(App):
     def build(self):
-        # Create a basic layout; on Android, the WebView will overlay this.
-        return FloatLayout()
+        return Widget()
 
     def on_start(self):
         if platform == 'android':
-            self.init_android_webview()
+            self.init_webview()
 
-    def init_android_webview(self):
+    def init_webview(self):
         from jnius import autoclass
         from android.runnable import run_on_ui_thread
 
-        # Standard Android/Kivy classes
+        # Android Native Classes
         PythonActivity = autoclass('org.kivy.android.PythonActivity')
         WebView = autoclass('android.webkit.WebView')
         WebViewClient = autoclass('android.webkit.WebViewClient')
-        WebSettings = autoclass('android.webkit.WebSettings')
+        LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+        LinearLayout = autoclass('android.widget.LinearLayout')
         
         activity = PythonActivity.mActivity
 
         @run_on_ui_thread
-        def create_webview():
-            # Initialize WebView instance
+        def create_webview_task():
+            # Create WebView instance
             webview = WebView(activity)
-            settings = webview.getSettings()
             
-            # Enable essential features for modern web apps
+            # Configure WebView Settings
+            settings = webview.getSettings()
             settings.setJavaScriptEnabled(True)
             settings.setDomStorageEnabled(True)
-            settings.setAllowFileAccess(True)
-            settings.setLoadsImagesAutomatically(True)
-            settings.setDatabaseEnabled(True)
+            settings.setLoadWithOverviewMode(True)
+            settings.setUseWideViewPort(True)
             settings.setSupportZoom(True)
             settings.setBuiltInZoomControls(True)
             settings.setDisplayZoomControls(False)
             
-            # Prevent external browser from opening links
+            # Prevent opening in external browser
             webview.setWebViewClient(WebViewClient())
             
-            # Force the WebView to occupy the full Activity screen to avoid SDL2 conflicts
-            activity.setContentView(webview)
-            
-            # Load target URL
+            # Load the specific URL
             webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
             
-            # Store reference for back button handling
+            # Add WebView to the Activity's layout without destroying SDL2 surface
+            layout = LinearLayout(activity)
+            activity.addContentView(webview, LayoutParams(-1, -1))
+            
             self.webview = webview
 
-        create_webview()
-        Window.bind(on_keyboard=self.on_back_button)
-
-    def on_back_button(self, window, key, *args):
-        # Handle Android physical back button (Key code 27)
-        if key == 27:
-            if platform == 'android' and hasattr(self, 'webview'):
-                if self.webview.canGoBack():
-                    self.webview.goBack()
-                    return True
-        return False
+        create_webview_task()
 
     def on_pause(self):
         return True
@@ -72,5 +61,5 @@ class DeliveryTrackerApp(App):
         pass
 
 if __name__ == '__main__':
-    DeliveryTrackerApp().run()
+    WebViewApp().run()
 ```
