@@ -1,4 +1,4 @@
-name: Titanium V60.0 Success Lockdown
+name: Titanium V70.0 Final Grace
 on:
   push:
     branches: [ main ]
@@ -6,39 +6,31 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python 3.10
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      - name: The Nuclear Purge (SDL2 Metadata Kill)
+          python-version: '3.11'
+      - name: Emergency System Purge
         run: |
-          # Kill the system's knowledge of SDL2 to prevent 'Mixed' header errors
-          sudo dpkg --purge --force-all libsdl2-dev libsdl2-mixed-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev || true
-          sudo rm -rf /usr/lib/x86_64-linux-gnu/pkgconfig/sdl2*
-          sudo rm -rf /usr/local/lib/pkgconfig/sdl2*
+          # Kill every trace of system SDL2 to allow Buildozer to build its own
+          sudo apt-get remove --purge -y libsdl2-dev libsdl2-mixed-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev || true
           sudo rm -rf /usr/include/SDL2
-          
-          # Install base minimal tools
-          sudo apt-get update
-          sudo apt-get install -y build-essential git openjdk-17-jdk libffi-dev libssl-dev zip unzip autoconf automake libtool
-          pip install --upgrade pip
+          sudo rm -rf /usr/local/include/SDL2
+          sudo apt-get autoremove -y
+          sudo apt-get autoclean
           pip install --upgrade buildozer cython==0.29.33
-      - name: Lockdown Reset
+      - name: Simplified Build Execution
         run: |
+          # Clean any old state first
           rm -rf .buildozer
-          rm -rf ~/.buildozer
-          mkdir -p bin
-      - name: Execute V60 Lockdown Build
-        run: |
-          # Force buildozer to download and compile its own SDL2 without system interference
           yes y | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
-      - name: Secure APK Artifact
+      - name: Deliver Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-V60-Lockdown-APK
+          name: Titanium-V70-Final-APK
           path: bin/*.apk
