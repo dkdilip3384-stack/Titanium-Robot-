@@ -1,4 +1,4 @@
-name: Titanium V1000 Infinity Core
+name: Titanium V1000 Robot Supremacy
 on:
   push:
     branches: [ main ]
@@ -9,44 +9,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: ULTRA AGGRESSIVE SDL2 NUKE
+      - name: ROBOTIC CLEANUP (Nuke All Conflicts)
         run: |
-          # Kill EVERYTHING that identifies as SDL2 in the system folders
           sudo apt-get remove --purge -y libsdl2-dev libsdl2-mixed-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev || true
           sudo find /usr -name "*sdl2*" -exec sudo rm -rf {} + || true
-          sudo find /usr/local -name "*sdl2*" -exec sudo rm -rf {} + || true
           sudo rm -f /usr/bin/sdl2-config || true
-          sudo rm -f /usr/local/bin/sdl2-config || true
-          sudo apt-get autoremove -y
-          sudo apt-get autoclean
-          
-          # Force install only minimal build requirements
-          pip install --upgrade pip
           pip install --upgrade buildozer cython==0.29.33
-      - name: Infinity Build Execution
+      - name: Autonomous Build
         run: |
-          # Clean old artifacts and force a fresh isolation
           rm -rf .buildozer
-          rm -f buildozer.spec
-          # Re-create spec on the fly to ensure 100% cleanliness
           buildozer init
+          # Standard Requirements for Stability
           sed -i 's/requirements = python3,kivy/requirements = python3,kivy==2.3.0,kivymd/' buildozer.spec
           sed -i 's/#android.api = 31/android.api = 33/' buildozer.spec
-          sed -i 's/#android.minapi = 21/android.minapi = 24/' buildozer.spec
           sed -i 's/#android.ndk = 25b/android.ndk = 25b/' buildozer.spec
-          sed -i 's/package.name = myapp/package.name = titanium.v1000/' buildozer.spec
-          sed -i 's/title = My Application/title = Titanium V1000/' buildozer.spec
-          
-          # The Final Strike
+          sed -i 's/package.name = myapp/package.name = robot.v1000/' buildozer.spec
+          sed -i 's/title = My Application/title = ROBOT V1000/' buildozer.spec
           yes y | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
-      - name: Deploy Infinity APK
+      - name: Archive Robot APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-V1000-Success-APK
+          name: Robot-V1000-Final-APK
           path: bin/*.apk
