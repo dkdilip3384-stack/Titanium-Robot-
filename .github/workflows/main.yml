@@ -1,4 +1,4 @@
-name: V2000 AI Factory Supremacy
+name: V2500 MASTER BOND AUTOMATION
 on:
   push:
     branches: [ main ]
@@ -9,15 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
+      - name: Setup Environment
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: System Preparation
+      - name: Aggressive Nuke & Prep
         run: |
           sudo apt-get remove --purge -y libsdl2-dev || true
           pip install --upgrade buildozer cython==0.29.33
-      - name: Build Execution
+      - name: Build Factory
         run: |
           rm -rf .buildozer
           buildozer init
@@ -26,8 +26,8 @@ jobs:
           yes y | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
-      - name: Upload APK
+      - name: Deliver Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-V2000-APK
+          name: Titanium-Master-APK
           path: bin/*.apk
