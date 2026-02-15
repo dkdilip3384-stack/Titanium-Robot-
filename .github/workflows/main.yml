@@ -1,4 +1,4 @@
-name: Titanium V46.0 Ultimate Build
+name: Titanium V46.0 Trust Build
 on:
   push:
     branches: [ main ]
@@ -13,25 +13,26 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: System Purge & Fresh Setup
+      - name: Nuclear Purge of Failing Packages
         run: |
           sudo apt-get update
-          # Explicitly NOT installing libsdl2-mixed-dev as requested
+          # Nuclear purge: Explicitly removing the source of the error
+          sudo apt-get purge -y libsdl2-mixed-dev || true
           sudo apt-get install -y build-essential git openjdk-17-jdk libffi-dev libssl-dev zip unzip autoconf automake libtool
           pip install --upgrade buildozer cython==0.29.33
           pip uninstall -y pyserpent || true
-      - name: Hard Clean Workspace
+      - name: Full Workspace Sanitization
         run: |
           rm -rf .buildozer
           rm -rf bin/
           buildozer android clean
-      - name: Ultimate Build V46.0
+      - name: Execute Trust Build V46.0
         run: |
           yes y | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
-      - name: Deliver V46.0 APK
+      - name: Deliver Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-V46-APK
+          name: Titanium-V46-Trust-APK
           path: bin/*.apk
