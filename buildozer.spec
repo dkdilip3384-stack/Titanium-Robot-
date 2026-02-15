@@ -1,6 +1,6 @@
 [app]
-title = Titanium V46
-package.name = titanium.v46.ultimate
+title = Titanium V46 Trust
+package.name = titanium.v46.trust
 package.domain = org.titanium.robot
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
