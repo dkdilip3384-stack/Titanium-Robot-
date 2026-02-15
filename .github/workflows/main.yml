@@ -1,4 +1,4 @@
-name: Titanium V48.0 Supreme Victory
+name: Titanium V50.0 Ultimate Relief
 on:
   push:
     branches: [ main ]
@@ -6,38 +6,39 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Nuclear Purge (SDL2 Mixed Clean)
+      - name: Extreme Clean & Isolation
         run: |
-          sudo apt-get update
-          # Forcefully removing the conflicting headers from the runner
+          # The Core Solution: Wipe everything related to SDL2 from the runner's system folders
           sudo apt-get remove --purge -y libsdl2-mixed-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev || true
+          sudo rm -rf /usr/include/SDL2
+          sudo rm -rf /usr/local/include/SDL2
           sudo apt-get autoremove -y
           sudo apt-get autoclean
-          # Clear standard include paths to be sure
-          sudo rm -rf /usr/include/SDL2
-          # Re-installing only base build tools
+          
+          # Install ONLY essential build tools
           sudo apt-get install -y build-essential git openjdk-17-jdk libffi-dev libssl-dev zip unzip autoconf automake libtool
+          pip install --upgrade pip
           pip install --upgrade buildozer cython==0.29.33
-      - name: Deep Sanitization
+      - name: Force Buildozer Reset
         run: |
           rm -rf .buildozer
           rm -rf ~/.buildozer
-          rm -rf bin/
-          buildozer android clean
-      - name: Supreme Build Execution
+          mkdir -p bin
+      - name: Execute V50 Final Build
         run: |
+          # Use 'yes' to handle all licenses and force buildozer to use internal recipes
           yes y | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
-      - name: Deliver Victory APK
+      - name: Upload Victory APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-Supreme-V48-APK
+          name: Titanium-V50-Success-APK
           path: bin/*.apk
