@@ -1,47 +1,52 @@
 ```python
 from kivy.app import App
 from kivy.utils import platform
+from kivy.uix.widget import Widget
 from kivy.clock import Clock
 
-class MainApp(App):
+class DeliveryTrackerApp(App):
     def build(self):
-        if platform == 'android':
-            self.start_webview()
-        return None  # Return None because we are overlaying native Android WebView
+        # Return a simple widget as a base to keep Kivy alive
+        return Widget()
 
-    def start_webview(self):
+    def on_start(self):
+        if platform == 'android':
+            self.init_android_webview()
+
+    def init_android_webview(self):
         from jnius import autoclass
         from android.runnable import run_on_ui_thread
 
-        # Import Android-specific classes via Pyjnius
+        # Reference Android system classes
         WebView = autoclass('android.webkit.WebView')
         WebViewClient = autoclass('android.webkit.WebViewClient')
-        WebSettings = autoclass('android.webkit.WebSettings')
         PythonActivity = autoclass('org.kivy.android.PythonActivity')
         activity = PythonActivity.mActivity
 
         @run_on_ui_thread
         def create_webview():
-            # Initialize WebView instance
+            # Initialize WebView and settings
             webview = WebView(activity)
             settings = webview.getSettings()
             
-            # Configure WebView for modern web apps
+            # Enable standard web features
             settings.setJavaScriptEnabled(True)
             settings.setDomStorageEnabled(True)
             settings.setAllowFileAccess(True)
-            settings.setLoadsImagesAutomatically(True)
+            settings.setAllowContentAccess(True)
             settings.setDatabaseEnabled(True)
-            settings.setSupportZoom(False)
+            settings.setUseWideViewPort(True)
+            settings.setLoadWithOverviewMode(True)
             
-            # Ensure links open inside the app, not in the system browser
+            # Prevent SDL2/Kivy surface from overlaying or conflicting
             webview.setWebViewClient(WebViewClient())
+            
+            # Set the WebView as the primary content view of the Android Activity
+            # This bypasses SDL2 rendering conflicts for the UI
+            activity.setContentView(webview)
             
             # Load the target URL
             webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
-            
-            # Set the WebView as the primary content view to resolve SDL2 surface conflicts
-            activity.setContentView(webview)
 
         create_webview()
 
@@ -52,5 +57,5 @@ class MainApp(App):
         pass
 
 if __name__ == '__main__':
-    MainApp().run()
+    DeliveryTrackerApp().run()
 ```
