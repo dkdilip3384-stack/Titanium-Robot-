@@ -9,10 +9,10 @@ from android.permissions import request_permissions, Permission
 WebView = autoclass('android.webkit.WebView')
 activity = autoclass('org.kivy.android.PythonActivity').mActivity
 
-class TitaniumGrace(MDApp):
+class TitaniumInfinity(MDApp):
     def build(self):
         self.theme_cls.theme_style = "Dark"
-        self.theme_cls.primary_palette = "Green"
+        self.theme_cls.primary_palette = "DeepPurple"
         Window.bind(on_keyboard=self.on_back_button)
         request_permissions([Permission.INTERNET])
         Clock.schedule_once(self.init_webview, 0.5)
@@ -24,16 +24,15 @@ class TitaniumGrace(MDApp):
         s = self.webview.getSettings()
         s.setJavaScriptEnabled(True)
         s.setDomStorageEnabled(True)
-        s.setAllowFileAccess(True)
         
-        class Client(PythonJavaClass):
+        class C(PythonJavaClass):
             __javainterfaces__ = ['android/webkit/WebViewClient']
             __javacontext__ = 'app'
             def shouldOverrideUrlLoading(self, view, url):
                 view.loadUrl(url)
                 return True
                 
-        self.webview.setWebViewClient(Client())
+        self.webview.setWebViewClient(C())
         self.webview.loadUrl('https://delivery-tracking-delta.vercel.app/')
         activity.setContentView(self.webview)
 
@@ -44,4 +43,4 @@ class TitaniumGrace(MDApp):
         return False
 
 if __name__ == '__main__':
-    TitaniumGrace().run()
+    TitaniumInfinity().run()
