@@ -1,62 +1,52 @@
 ```python
-import sys
 from kivy.app import App
-from kivy.core.window import Window
+from kivy.uix.widget import Widget
 from kivy.utils import platform
+from kivy.clock import Clock
 
-class DeliveryTrackerApp(App):
+class MainApp(App):
     def build(self):
-        if platform == 'android':
-            self.init_webview()
-        return None
+        return Widget()
 
-    def init_webview(self):
+    def on_start(self):
+        if platform == 'android':
+            Clock.schedule_once(self.create_webview, 0)
+
+    def create_webview(self, *args):
         from jnius import autoclass
         from android.runnable import run_on_ui_thread
 
-        # Native Android imports via Pyjnius
+        # Android classes
         WebView = autoclass('android.webkit.WebView')
         WebViewClient = autoclass('android.webkit.WebViewClient')
-        PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        activity = PythonActivity.mActivity
+        WebSettings = autoclass('android.webkit.WebSettings')
+        Activity = autoclass('org.kivy.android.PythonActivity').mActivity
 
         @run_on_ui_thread
-        def create_webview():
-            # Create the native WebView instance
-            self.webview = WebView(activity)
+        def setup_webview():
+            webview = WebView(Activity)
+            settings = webview.getSettings()
             
-            # Configure WebView settings to prevent rendering and JS errors
-            settings = self.webview.getSettings()
+            # Enable standard web features for modern React/Next.js apps
             settings.setJavaScriptEnabled(True)
             settings.setDomStorageEnabled(True)
             settings.setAllowFileAccess(True)
-            settings.setLoadWithOverviewMode(True)
-            settings.setUseWideViewPort(True)
-            settings.setSupportZoom(True)
-            settings.setBuiltInZoomControls(True)
-            settings.setDisplayZoomControls(False)
+            settings.setAllowContentAccess(True)
+            settings.setDatabaseEnabled(True)
+            settings.setJavaScriptCanOpenWindowsAutomatically(True)
+            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
             
-            # Set the Client to handle internal navigation
-            self.webview.setWebViewClient(WebViewClient())
+            # Use WebViewClient to prevent external browser from opening
+            webview.setWebViewClient(WebViewClient())
             
-            # Load your specific URL
-            self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
+            # Set the webview as the main content view to avoid SDL2 rendering conflicts
+            Activity.setContentView(webview)
+            webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
             
-            # Set the WebView as the main view of the Android Activity 
-            # This bypasses SDL2 texture conflicts by overlaying the native UI
-            activity.setContentView(self.webview)
+            # Attach webview to the app instance to prevent garbage collection
+            self.webview = webview
 
-        create_webview()
-        # Bind back button to allow navigating back in web history
-        Window.bind(on_keyboard=self.back_button_handler)
-
-    def back_button_handler(self, window, key, *args):
-        if key == 27:  # Android Back Button
-            if platform == 'android' and hasattr(self, 'webview'):
-                if self.webview.canGoBack():
-                    self.webview.goBack()
-                    return True
-        return False
+        setup_webview()
 
     def on_pause(self):
         return True
@@ -65,5 +55,5 @@ class DeliveryTrackerApp(App):
         pass
 
 if __name__ == '__main__':
-    DeliveryTrackerApp().run()
+    MainApp().run()
 ```
