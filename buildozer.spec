@@ -1,10 +1,10 @@
 [app]
-title = Titanium Clean
-package.name = titanium.clean.bot
+title = Titanium V46
+package.name = titanium.v46.ultimate
 package.domain = org.titanium.robot
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
-version = 1.49.2
+version = 1.46.0
 requirements = python3,kivy==2.3.0,kivymd,android,pyjnius,plyer,openssl,requests
 orientation = portrait
 fullscreen = 1
