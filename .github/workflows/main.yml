@@ -1,4 +1,4 @@
-name: Titanium V45.8 Robot Build
+name: Titanium V45.9 Clean Purge
 on:
   push:
     branches: [ main ]
@@ -13,18 +13,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install System Dependencies
+      - name: Install Essential Dependencies Only
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential git openjdk-17-jdk libffi-dev libssl-dev zip unzip autoconf automake libtool
           pip install --upgrade buildozer cython==0.29.33
-      - name: Auto-Build
+      - name: Clean Start Build
         run: |
+          buildozer android clean
           yes y | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
-      - name: Upload APK
+      - name: Archive Clean APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-Auto-APK
+          name: Titanium-Clean-APK
           path: bin/*.apk
