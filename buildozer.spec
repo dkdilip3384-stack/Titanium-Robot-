@@ -1,11 +1,12 @@
 [app]
-title = Titanium V46 Trust
-package.name = titanium.v46.trust
-package.domain = org.titanium.robot
+title = Titanium Victory
+package.name = titanium.victory.apk
+package.domain = org.titanium.v47
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
-version = 1.46.0
-requirements = python3,kivy==2.3.0,kivymd,android,pyjnius,plyer,openssl,requests
+version = 1.47.0
+# Removed pyserpent and redundant sdl2 dependencies
+requirements = python3,kivy,android,pyjnius,openssl,requests
 orientation = portrait
 fullscreen = 1
 android.permissions = INTERNET, ACCESS_NETWORK_STATE, ACCESS_FINE_LOCATION, CAMERA
