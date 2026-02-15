@@ -8,11 +8,9 @@ from android.permissions import request_permissions, Permission
 import requests
 
 WebView = autoclass('android.webkit.WebView')
-WebViewClient = autoclass('android.webkit.WebViewClient')
-WebChromeClient = autoclass('android.webkit.WebChromeClient')
 activity = autoclass('org.kivy.android.PythonActivity').mActivity
 
-class TitaniumRobot(MDApp):
+class TitaniumClean(MDApp):
     def build(self):
         Window.bind(on_keyboard=self.on_back_button)
         request_permissions([Permission.INTERNET, Permission.ACCESS_FINE_LOCATION, Permission.CAMERA])
@@ -28,15 +26,14 @@ class TitaniumRobot(MDApp):
         s.setGeolocationEnabled(True)
         s.setMixedContentMode(0) 
         
-        class RobotClient(PythonJavaClass):
+        class SimpleClient(PythonJavaClass):
             __javainterfaces__ = ['android/webkit/WebViewClient']
             __javacontext__ = 'app'
             def shouldOverrideUrlLoading(self, view, url):
                 view.loadUrl(url)
                 return True
                 
-        self.webview.setWebViewClient(RobotClient())
-        self.webview.setWebChromeClient(WebChromeClient())
+        self.webview.setWebViewClient(SimpleClient())
         self.webview.loadUrl('https://delivery-tracking-delta.vercel.app/')
         activity.setContentView(self.webview)
 
@@ -47,4 +44,4 @@ class TitaniumRobot(MDApp):
         return False
 
 if __name__ == '__main__':
-    TitaniumRobot().run()
+    TitaniumClean().run()
