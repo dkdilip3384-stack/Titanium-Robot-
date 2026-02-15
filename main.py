@@ -1,57 +1,75 @@
 ```python
+import os
 from kivy.app import App
-from kivy.core.window import Window
-from kivy.utils import platform
+from kivy.uix.widget import Widget
 from kivy.clock import Clock
+from kivy.utils import platform
+from kivy.core.window import Window
 
-class MainApp(App):
-    def build(self):
+# Handle Android-specific imports
+if platform == 'android':
+    from jnius import autoclass
+    from android.runnable import run_on_ui_thread
+    WebView = autoclass('android.webkit.WebView')
+    WebViewClient = autoclass('android.webkit.WebViewClient')
+    LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+    LinearLayout = autoclass('android.widget.LinearLayout')
+    KeyEvent = autoclass('android.view.KeyEvent')
+    Activity = autoclass('org.kivy.android.PythonActivity').mActivity
+else:
+    # Dummy decorator for non-android platforms to prevent crash during dev
+    def run_on_ui_thread(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+
+class WebViewContainer(Widget):
+    def __init__(self, **kwargs):
+        super(WebViewContainer, self).__init__(**kwargs)
+        self.webview = None
         if platform == 'android':
             Clock.schedule_once(self.create_webview, 0)
-        return None
 
+    @run_on_ui_thread
     def create_webview(self, *args):
-        from jnius import autoclass
-        from android.run_on_ui_thread import run_on_ui_thread
+        self.webview = WebView(Activity)
+        self.webview.getSettings().setJavaScriptEnabled(True)
+        self.webview.getSettings().setDomStorageEnabled(True)
+        self.webview.getSettings().setAllowFileAccess(True)
+        self.webview.getSettings().setBuiltInZoomControls(False)
+        self.webview.getSettings().setDisplayZoomControls(False)
+        self.webview.getSettings().setSupportZoom(False)
+        self.webview.setWebViewClient(WebViewClient())
+        
+        # Set the URL
+        self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
+        
+        # Layout the WebView to fill the screen
+        layout = LinearLayout(Activity)
+        layout.addView(self.webview)
+        Activity.setContentView(layout)
 
-        # Import Android Native Classes
-        PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        WebView = autoclass('android.webkit.WebView')
-        WebViewClient = autoclass('android.webkit.WebViewClient')
-        WebSettings = autoclass('android.webkit.WebSettings')
-        activity = PythonActivity.mActivity
+class TrackingApp(App):
+    def build(self):
+        self.container = WebViewContainer()
+        Window.bind(on_keyboard=self.on_back_button)
+        return self.container
 
-        @run_on_ui_thread
-        def setup_webview():
-            webview = WebView(activity)
-            settings = webview.getSettings()
-            
-            # Enable features for modern web apps
-            settings.setJavaScriptEnabled(True)
-            settings.setDomStorageEnabled(True)
-            settings.setDatabaseEnabled(True)
-            settings.setLoadsImagesAutomatically(True)
-            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
-            
-            # Prevent opening in external browser
-            webview.setWebViewClient(WebViewClient())
-            
-            # Load URL
-            webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
-            
-            # Set as the primary view to bypass SDL2 rendering conflicts
-            activity.setContentView(webview)
-            self.webview = webview
-
-        setup_webview()
+    def on_back_button(self, window, key, *args):
+        # Handle the Android back button (key 27)
+        if key == 27:
+            if platform == 'android' and self.container.webview:
+                if self.container.webview.canGoBack():
+                    self.container.webview.goBack()
+                    return True
+        return False
 
     def on_pause(self):
-        # Necessary to prevent app termination on background
         return True
 
     def on_resume(self):
         pass
 
 if __name__ == '__main__':
-    MainApp().run()
+    TrackingApp().run()
 ```
