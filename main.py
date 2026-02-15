@@ -1,60 +1,46 @@
 ```python
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.clock import Clock
+from kivy.uix.widget import Widget
 from kivy.utils import platform
+from kivy.clock import Clock
 
-# This part handles the Android-specific WebView integration
+# Only import Android specific modules if running on Android
 if platform == 'android':
     from jnius import autoclass
     from android.runnable import run_on_ui_thread
-
+    
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
-    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+    AndroidColor = autoclass('android.graphics.Color')
+    LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+    LinearLayout = autoclass('android.view.ViewGroup$LayoutParams')
+    Activity = autoclass('org.kivy.android.PythonActivity').mActivity
 else:
-    # Dummy for non-android platforms to prevent import errors during local dev
-    def run_on_ui_thread(func):
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-        return wrapper
+    run_on_ui_thread = lambda x: x
 
-class WebViewApp(App):
-    def build(self):
-        self.url = "https://delivery-tracking-delta.vercel.app/"
-        self.root = BoxLayout()
-        # Schedule the WebView creation after the Kivy window is initialized
-        Clock.schedule_once(self.create_webview, 0)
-        return self.root
+class WebViewWidget(Widget):
+    def __init__(self, **kwargs):
+        super(WebViewWidget, self).__init__(**kwargs)
+        if platform == 'android':
+            self.create_webview()
 
     @run_on_ui_thread
-    def create_webview(self, *args):
-        activity = PythonActivity.mActivity
-        
-        # Initialize WebView
-        webview = WebView(activity)
+    def create_webview(self):
+        # Create the Android WebView directly to bypass SDL2 overlay conflicts
+        webview = WebView(Activity)
         webview.getSettings().setJavaScriptEnabled(True)
         webview.getSettings().setDomStorageEnabled(True)
-        webview.getSettings().setDatabaseEnabled(True)
-        webview.getSettings().setAppCacheEnabled(True)
-        webview.getSettings().setLoadsImagesAutomatically(True)
-        webview.getSettings().setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
-        
-        # Prevent opening external browser
+        webview.getSettings().setAllowFileAccess(True)
+        webview.getSettings().setUserAgentString("Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36")
         webview.setWebViewClient(WebViewClient())
+        webview.loadUrl('https://delivery-tracking-delta.vercel.app/')
         
-        # Create Layout Params to fill the screen
-        LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-        layout_params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        
-        # Load the Target URL
-        webview.loadUrl(self.url)
-        
-        # Add to the Android Activity View
-        activity.addContentView(webview, layout_params)
-        
-        # Store reference to prevent garbage collection and handle back button
-        self.webview = webview
+        # Set the WebView as the main content view of the Android Activity
+        Activity.setContentView(webview)
+
+class DeliveryTrackerApp(App):
+    def build(self):
+        return WebViewWidget()
 
     def on_pause(self):
         return True
@@ -63,5 +49,5 @@ class WebViewApp(App):
         pass
 
 if __name__ == '__main__':
-    WebViewApp().run()
+    DeliveryTrackerApp().run()
 ```
