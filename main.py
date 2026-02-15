@@ -1,22 +1,25 @@
 ```python
-import kivy
+import os
 from kivy.app import App
-from kivy.utils import platform
 from kivy.uix.widget import Widget
+from kivy.utils import platform
 from kivy.clock import Clock
-from kivy.core.window import Window
 
-# Logic for Android Native WebView to avoid SDL2 conflicts
+# Only import android-specific libraries if we are on the Android platform
 if platform == 'android':
-    from jnius import autoclass, cast
+    from jnius import autoclass
     from android.runnable import run_on_ui_thread
-
+    
+    # Android Classes
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
-    android_activity = autoclass('org.kivy.android.PythonActivity').mActivity
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
 else:
-    # Fallback for desktop testing
-    run_on_ui_thread = lambda x: x
+    # Dummy decorator for non-android platforms to prevent import errors
+    def run_on_ui_thread(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
 
 class WebViewWidget(Widget):
     def __init__(self, **kwargs):
@@ -27,41 +30,39 @@ class WebViewWidget(Widget):
 
     @run_on_ui_thread
     def create_webview(self, *args):
-        self.webview = WebView(android_activity)
-        self.webview.getSettings().setJavaScriptEnabled(True)
-        self.webview.getSettings().setDomStorageEnabled(True)
-        self.webview.getSettings().setDatabaseEnabled(True)
-        self.webview.getSettings().setAllowFileAccess(True)
+        # Get the current activity instance
+        activity = PythonActivity.mActivity
+        
+        # Initialize the WebView
+        self.webview = WebView(activity)
+        
+        # Configure WebView settings for modern web apps
+        settings = self.webview.getSettings()
+        settings.setJavaScriptEnabled(True)
+        settings.setDomStorageEnabled(True)
+        settings.setAllowFileAccess(True)
+        settings.setLoadsImagesAutomatically(True)
+        
+        # Set the WebViewClient to handle navigation within the view
         self.webview.setWebViewClient(WebViewClient())
+        
+        # Load the target URL
         self.webview.loadUrl(self.url)
-        android_activity.setContentView(self.webview)
+        
+        # Set the WebView as the main view of the activity, 
+        # bypassing SDL2 surface conflicts
+        activity.setContentView(self.webview)
 
-class DeliveryTrackerApp(App):
+class MainApp(App):
     def build(self):
-        self.bind(on_start=self.post_build)
         return WebViewWidget()
 
-    def post_build(self, *args):
-        if platform == 'android':
-            Window.bind(on_keyboard=self.back_handler)
+    def on_pause(self):
+        return True
 
-    def back_handler(self, window, key, *args):
-        # Handle Android back button to navigate webview history
-        if key == 27:
-            if platform == 'android':
-                self.check_back_history()
-                return True
-        return False
-
-    @run_on_ui_thread
-    def check_back_history(self):
-        # Logic to go back in browser instead of closing app
-        view = App.get_running_app().root.webview
-        if view.canGoBack():
-            view.goBack()
-        else:
-            android_activity.finish()
+    def on_resume(self):
+        pass
 
 if __name__ == '__main__':
-    DeliveryTrackerApp().run()
+    MainApp().run()
 ```
