@@ -1,4 +1,4 @@
-name: Titanium Supreme Build
+name: Titanium V45.8 Robot Build
 on:
   push:
     branches: [ main ]
@@ -18,13 +18,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential git openjdk-17-jdk libffi-dev libssl-dev zip unzip autoconf automake libtool
           pip install --upgrade buildozer cython==0.29.33
-      - name: Build Android App (API 34)
+      - name: Auto-Build
         run: |
           yes y | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
-      - name: Upload Result
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-Dileep-APK
+          name: Titanium-Auto-APK
           path: bin/*.apk
