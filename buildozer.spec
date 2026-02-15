@@ -4,7 +4,7 @@ package.name = titanium.clean.bot
 package.domain = org.titanium.robot
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
-version = 1.49.1
+version = 1.49.2
 requirements = python3,kivy==2.3.0,kivymd,android,pyjnius,plyer,openssl,requests
 orientation = portrait
 fullscreen = 1
