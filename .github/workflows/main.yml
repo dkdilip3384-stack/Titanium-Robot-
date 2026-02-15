@@ -1,4 +1,4 @@
-name: Titanium V47.0 Victory Build
+name: Titanium V48.0 Supreme Victory
 on:
   push:
     branches: [ main ]
@@ -13,20 +13,25 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Hard Purge Failing Headers
+      - name: Nuclear Purge (SDL2 Mixed Clean)
         run: |
           sudo apt-get update
-          # Removing the specific packages that caused 43 failures
-          sudo apt-get purge -y libsdl2-mixed-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
+          # Forcefully removing the conflicting headers from the runner
+          sudo apt-get remove --purge -y libsdl2-mixed-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev || true
           sudo apt-get autoremove -y
+          sudo apt-get autoclean
+          # Clear standard include paths to be sure
+          sudo rm -rf /usr/include/SDL2
+          # Re-installing only base build tools
           sudo apt-get install -y build-essential git openjdk-17-jdk libffi-dev libssl-dev zip unzip autoconf automake libtool
           pip install --upgrade buildozer cython==0.29.33
-      - name: Workspace Wipe
+      - name: Deep Sanitization
         run: |
           rm -rf .buildozer
+          rm -rf ~/.buildozer
           rm -rf bin/
           buildozer android clean
-      - name: Execute V47 Victory Build
+      - name: Supreme Build Execution
         run: |
           yes y | buildozer android debug
         env:
@@ -34,5 +39,5 @@ jobs:
       - name: Deliver Victory APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-Victory-APK
+          name: Titanium-Supreme-V48-APK
           path: bin/*.apk
