@@ -1,60 +1,70 @@
 ```python
-import kivy
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.clock import Clock
-from jnius import autoclass, cast
+from kivy.utils import platform
 
-# Android Native imports
-PythonActivity = autoclass('org.kivy.android.PythonActivity')
-WebView = autoclass('android.webkit.WebView')
-WebViewClient = autoclass('android.webkit.WebViewClient')
-LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-LinearLayout = autoclass('android.widget.LinearLayout')
+# Conditional imports to prevent crashes on non-Android systems during dev
+if platform == 'android':
+    from android.run_on_ui_thread import run_on_ui_thread
+    from jnius import autoclass, cast
+    
+    WebView = autoclass('android.webkit.WebView')
+    WebViewClient = autoclass('android.webkit.WebViewClient')
+    LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+    LinearLayout = autoclass('android.widget.LinearLayout')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+else:
+    # Dummy decorator for desktop testing
+    def run_on_ui_thread(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
 
-class WebViewWidget(Widget):
-    def __init__(self, **kwargs):
-        super(WebViewWidget, self).__init__(**kwargs)
-        self.url = "https://delivery-tracking-delta.vercel.app/"
+class MainApp(App):
+    def build(self):
+        self.webview = None
+        # Schedule the WebView creation after the Kivy window is ready
         Clock.schedule_once(self.create_webview, 0)
+        return Widget()
 
+    @run_on_ui_thread
     def create_webview(self, *args):
+        # Access the Android Activity
         activity = PythonActivity.mActivity
         
         # Initialize WebView
-        self.webview = WebView(activity)
-        self.webview.getSettings().setJavaScriptEnabled(True)
-        self.webview.getSettings().setDomStorageEnabled(True)
-        self.webview.getSettings().setDatabaseEnabled(True)
-        self.webview.getSettings().setAllowFileAccess(True)
-        self.webview.getSettings().setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
+        webview = WebView(activity)
+        settings = webview.getSettings()
         
-        # Set WebViewClient to prevent external browser opening
-        self.webview.setWebViewClient(WebViewClient())
+        # Standard configuration for modern web apps
+        settings.setJavaScriptEnabled(True)
+        settings.setDomStorageEnabled(True)
+        settings.setAllowFileAccess(True)
+        settings.setJavaScriptCanOpenWindowsAutomatically(True)
+        settings.setDatabaseEnabled(True)
         
-        # Layout parameters to fill screen
-        layout_params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        # Ensure links stay inside the app
+        webview.setWebViewClient(WebViewClient())
         
-        # Create a native layout to hold the WebView
-        self.layout = LinearLayout(activity)
-        self.layout.addView(self.webview, layout_params)
+        # Load the target URL
+        webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
         
-        # Add to the activity content view
-        activity.addContentView(self.layout, layout_params)
+        # Set the layout and add to activity
+        layout = LinearLayout(activity)
+        layout.addView(webview, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        activity.setContentView(layout)
         
-        # Load the URL
-        self.webview.loadUrl(self.url)
-
-class DeliveryTrackerApp(App):
-    def build(self):
-        return WebViewWidget()
+        # Keep a reference
+        self.webview = webview
 
     def on_pause(self):
+        # Prevent the app from closing when switched to background
         return True
 
     def on_resume(self):
         pass
 
 if __name__ == '__main__':
-    DeliveryTrackerApp().run()
+    MainApp().run()
 ```
