@@ -1,43 +1,53 @@
 ```python
 from kivy.app import App
-from kivy.uix.widget import Widget
+from kivy.uix.boxlayout import BoxLayout
+from kivy.utils import platform
 from kivy.clock import Clock
-from android.run_on_ui_thread import run_on_ui_thread
-from jnius import autoclass
 
-# Android classes
-WebView = autoclass('android.webkit.WebView')
-WebViewClient = autoclass('android.webkit.WebViewClient')
-Activity = autoclass('org.kivy.android.PythonActivity').mActivity
-
-class AndroidWebView:
-    def __init__(self, url):
-        self.url = url
-        self.webview = None
-        self.create_webview()
-
-    @run_on_ui_thread
-    def create_webview(self):
-        self.webview = WebView(Activity)
-        settings = self.webview.getSettings()
-        settings.setJavaScriptEnabled(True)
-        settings.setDomStorageEnabled(True)
-        settings.setDatabaseEnabled(True)
-        settings.setLoadWithOverviewMode(True)
-        settings.setUseWideViewPort(True)
-        settings.setSupportZoom(True)
-        settings.setBuiltInZoomControls(True)
-        settings.setDisplayZoomControls(False)
-        
-        self.webview.setWebViewClient(WebViewClient())
-        Activity.setContentView(self.webview)
-        self.webview.loadUrl(self.url)
+# Only import android specific modules if running on Android
+if platform == 'android':
+    from jnius import autoclass
+    from android.runnable import run_on_ui_thread
+    
+    WebView = autoclass('android.webkit.WebView')
+    WebViewClient = autoclass('android.webkit.WebViewClient')
+    WebSettings = autoclass('android.webkit.WebSettings')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+else:
+    run_on_ui_thread = lambda x: x
 
 class MainApp(App):
     def build(self):
-        # We trigger the WebView creation immediately
-        self.webview_handler = AndroidWebView("https://delivery-tracking-delta.vercel.app/")
-        return Widget() # Return an empty widget as WebView takes over the Activity view
+        self.url = "https://delivery-tracking-delta.vercel.app/"
+        root = BoxLayout()
+        if platform != 'android':
+            from kivy.uix.label import Label
+            root.add_widget(Label(text="WebView is only supported on Android.\nURL: " + self.url))
+        return root
+
+    def on_start(self):
+        if platform == 'android':
+            self.create_webview()
+
+    @run_on_ui_thread
+    def create_webview(self):
+        activity = PythonActivity.mActivity
+        webview = WebView(activity)
+        
+        # Configure settings to prevent common crashes and JS errors
+        settings = webview.getSettings()
+        settings.setJavaScriptEnabled(True)
+        settings.setDomStorageEnabled(True)
+        settings.setAllowFileAccess(True)
+        settings.setDatabaseEnabled(True)
+        settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
+        
+        # Standard WebViewClient to handle navigation within the widget
+        webview.setWebViewClient(WebViewClient())
+        
+        # Set the WebView as the primary content view to avoid SDL2 rendering conflicts
+        activity.setContentView(webview)
+        webview.loadUrl(self.url)
 
     def on_pause(self):
         return True
