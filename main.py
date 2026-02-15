@@ -1,85 +1,65 @@
 ```python
-import os
 from kivy.app import App
-from kivy.uix.widget import Widget
-from kivy.clock import Clock
+from kivy.core.window import Window
 from kivy.utils import platform
+from kivy.clock import Clock
 
-# Global reference for the webview to prevent garbage collection
-webview = None
-
+# Only import android specific modules if running on Android
 if platform == 'android':
     from jnius import autoclass
     from android.runnable import run_on_ui_thread
-
-    # Android class imports
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
-    WebSettings = autoclass('android.webkit.WebSettings')
     Activity = autoclass('org.kivy.android.PythonActivity').mActivity
-    LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-    LinearLayout = autoclass('android.widget.LinearLayout')
-    
-    class AndroidWebView:
-        def __init__(self, url):
-            self.url = url
-            self.create_webview()
+else:
+    # Dummy decorator for non-android platforms
+    def run_on_ui_thread(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
 
-        @run_on_ui_thread
-        def create_webview(self):
-            global webview
-            webview = WebView(Activity)
-            settings = webview.getSettings()
-            
-            # Enable core features for modern web apps
-            settings.setJavaScriptEnabled(True)
-            settings.setDomStorageEnabled(True)
-            settings.setAllowFileAccess(True)
-            settings.setLoadsImagesAutomatically(True)
-            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
-            settings.setSupportZoom(True)
-            settings.setBuiltInZoomControls(True)
-            settings.setDisplayZoomControls(False)
-            
-            # Handle page navigation within the webview
-            webview.setWebViewClient(WebViewClient())
-            
-            # Create a layout to house the webview
-            layout = LinearLayout(Activity)
-            layout.setOrientation(LinearLayout.VERTICAL)
-            layout.addView(webview, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            
-            # Set the activity's content view to our webview layout
-            # This bypasses SDL2 drawing issues by making the WebView the primary view
-            Activity.setContentView(layout)
-            webview.loadUrl(self.url)
-
-        @run_on_ui_thread
-        def on_resume(self):
-            if webview:
-                webview.onResume()
-
-        @run_on_ui_thread
-        def on_pause(self):
-            if webview:
-                webview.onPause()
-
-class DeliveryTrackerApp(App):
+class MainApp(App):
     def build(self):
         self.url = "https://delivery-tracking-delta.vercel.app/"
         if platform == 'android':
-            self.webview_handler = AndroidWebView(self.url)
-        return Widget() # Return empty widget as WebView replaces UI
+            # Run the WebView initialization on the Android UI Thread to avoid SDL2 conflicts
+            Clock.schedule_once(self.create_webview, 0)
+        return None  # Return None because we are replacing the view with a native component
+
+    @run_on_ui_thread
+    def create_webview(self, *args):
+        self.webview = WebView(Activity)
+        settings = self.webview.getSettings()
+        settings.setJavaScriptEnabled(True)
+        settings.setDomStorageEnabled(True)
+        settings.setAllowFileAccess(True)
+        settings.setDatabaseEnabled(True)
+        settings.setUserAgentString("Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36")
+        
+        # This prevents the URL from opening in an external browser
+        self.webview.setWebViewClient(WebViewClient())
+        
+        # Set the WebView as the main view of the Android Activity
+        Activity.setContentView(self.webview)
+        self.webview.loadUrl(self.url)
+        
+        # Bind the back button to navigate the WebView history
+        Window.bind(on_keyboard=self.back_handler)
+
+    def back_handler(self, window, key, scancode, codepoint, modifier):
+        if key == 27:  # 27 is the code for the 'Back' button
+            if platform == 'android':
+                if self.webview.canGoBack():
+                    self.webview.goBack()
+                    return True
+        return False
 
     def on_pause(self):
-        if platform == 'android' and hasattr(self, 'webview_handler'):
-            self.webview_handler.on_pause()
         return True
 
     def on_resume(self):
-        if platform == 'android' and hasattr(self, 'webview_handler'):
-            self.webview_handler.on_resume()
+        pass
 
 if __name__ == '__main__':
-    DeliveryTrackerApp().run()
+    MainApp().run()
 ```
