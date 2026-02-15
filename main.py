@@ -1,18 +1,22 @@
 ```python
 from kivy.app import App
-from kivy.core.window import Window
+from kivy.uix.widget import Widget
 from kivy.utils import platform
 from kivy.clock import Clock
 
-# Only import android specific modules if running on Android
+# Only import Android-specific modules if running on Android
 if platform == 'android':
     from jnius import autoclass
     from android.runnable import run_on_ui_thread
+
+    # Android API classes
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
-    Activity = autoclass('org.kivy.android.PythonActivity').mActivity
+    LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+    LinearLayout = autoclass('android.widget.LinearLayout')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
 else:
-    # Dummy decorator for non-android platforms
+    # Dummy decorator for non-android platforms to prevent errors
     def run_on_ui_thread(func):
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
@@ -21,38 +25,40 @@ else:
 class MainApp(App):
     def build(self):
         self.url = "https://delivery-tracking-delta.vercel.app/"
+        # We return a dummy widget because we will overlay the native WebView
+        root = Widget()
         if platform == 'android':
-            # Run the WebView initialization on the Android UI Thread to avoid SDL2 conflicts
             Clock.schedule_once(self.create_webview, 0)
-        return None  # Return None because we are replacing the view with a native component
+        return root
 
     @run_on_ui_thread
     def create_webview(self, *args):
-        self.webview = WebView(Activity)
+        # Get the main activity context
+        activity = PythonActivity.mActivity
+        
+        # Initialize WebView
+        self.webview = WebView(activity)
         settings = self.webview.getSettings()
+        
+        # Configure settings to prevent conflicts and ensure site loads
         settings.setJavaScriptEnabled(True)
         settings.setDomStorageEnabled(True)
         settings.setAllowFileAccess(True)
-        settings.setDatabaseEnabled(True)
-        settings.setUserAgentString("Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36")
+        settings.setJavaScriptCanOpenWindowsAutomatically(True)
         
-        # This prevents the URL from opening in an external browser
+        # Set WebViewClient to prevent opening external browser
         self.webview.setWebViewClient(WebViewClient())
         
-        # Set the WebView as the main view of the Android Activity
-        Activity.setContentView(self.webview)
-        self.webview.loadUrl(self.url)
+        # Use a Layout to hold the WebView to ensure proper SDL2 layering
+        layout = LinearLayout(activity)
+        layout.addView(self.webview, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         
-        # Bind the back button to navigate the WebView history
-        Window.bind(on_keyboard=self.back_handler)
-
-    def back_handler(self, window, key, scancode, codepoint, modifier):
-        if key == 27:  # 27 is the code for the 'Back' button
-            if platform == 'android':
-                if self.webview.canGoBack():
-                    self.webview.goBack()
-                    return True
-        return False
+        # Set the activity content to our native layout
+        # This replaces the Kivy SDL2 view with the native Android View
+        activity.setContentView(layout)
+        
+        # Load the target URL
+        self.webview.loadUrl(self.url)
 
     def on_pause(self):
         return True
