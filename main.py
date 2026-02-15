@@ -4,49 +4,55 @@ from kivy.uix.widget import Widget
 from kivy.utils import platform
 from kivy.clock import Clock
 
-class MainApp(App):
+# Only import android specific modules if running on Android
+if platform == 'android':
+    from android.runnable import run_on_ui_thread
+    from jnius import autoclass
+    
+    WebView = autoclass('android.webkit.WebView')
+    WebViewClient = autoclass('android.webkit.WebViewClient')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+else:
+    # Dummy decorator for non-android platforms to prevent import errors
+    def run_on_ui_thread(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+
+class WebViewApp(App):
     def build(self):
-        return Widget()
+        self.root = Widget()
+        return self.root
 
     def on_start(self):
         if platform == 'android':
-            Clock.schedule_once(self.create_webview, 0)
+            self.create_webview()
 
-    def create_webview(self, *args):
-        from jnius import autoclass
-        from android.runnable import run_on_ui_thread
-
-        # Android classes
-        WebView = autoclass('android.webkit.WebView')
-        WebViewClient = autoclass('android.webkit.WebViewClient')
-        WebSettings = autoclass('android.webkit.WebSettings')
-        Activity = autoclass('org.kivy.android.PythonActivity').mActivity
-
-        @run_on_ui_thread
-        def setup_webview():
-            webview = WebView(Activity)
-            settings = webview.getSettings()
-            
-            # Enable standard web features for modern React/Next.js apps
-            settings.setJavaScriptEnabled(True)
-            settings.setDomStorageEnabled(True)
-            settings.setAllowFileAccess(True)
-            settings.setAllowContentAccess(True)
-            settings.setDatabaseEnabled(True)
-            settings.setJavaScriptCanOpenWindowsAutomatically(True)
-            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
-            
-            # Use WebViewClient to prevent external browser from opening
-            webview.setWebViewClient(WebViewClient())
-            
-            # Set the webview as the main content view to avoid SDL2 rendering conflicts
-            Activity.setContentView(webview)
-            webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
-            
-            # Attach webview to the app instance to prevent garbage collection
-            self.webview = webview
-
-        setup_webview()
+    @run_on_ui_thread
+    def create_webview(self):
+        # Access the underlying Android Activity
+        activity = PythonActivity.mActivity
+        
+        # Create the Native Android WebView
+        self.webview = WebView(activity)
+        
+        # Configure WebView settings for modern web apps (React/Vercel)
+        settings = self.webview.getSettings()
+        settings.setJavaScriptEnabled(True)
+        settings.setDomStorageEnabled(True)
+        settings.setLoadWithOverviewMode(True)
+        settings.setUseWideViewPort(True)
+        settings.setSupportZoom(True)
+        settings.setBuiltInZoomControls(False)
+        
+        # Prevent opening external browser; stay inside the app
+        self.webview.setWebViewClient(WebViewClient())
+        
+        # Load the specific Vercel URL
+        self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
+        
+        # Set the WebView as the main view of the activity (avoids SDL2 layer conflicts)
+        activity.setContentView(self.webview)
 
     def on_pause(self):
         return True
@@ -55,5 +61,5 @@ class MainApp(App):
         pass
 
 if __name__ == '__main__':
-    MainApp().run()
+    WebViewApp().run()
 ```
