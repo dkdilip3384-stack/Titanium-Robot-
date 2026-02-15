@@ -1,11 +1,11 @@
 [app]
-title = Titanium Robot
-package.name = titanium.robot.auto
-package.domain = org.titanium.dileep
+title = Titanium Clean
+package.name = titanium.clean.bot
+package.domain = org.titanium.robot
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
-version = 1.48.2
-requirements = python3,kivy==2.3.0,kivymd,android,pyjnius,plyer,openssl,requests,sqlite3,pillow
+version = 1.49.1
+requirements = python3,kivy==2.3.0,kivymd,android,pyjnius,plyer,openssl,requests
 orientation = portrait
 fullscreen = 1
 android.permissions = INTERNET, ACCESS_NETWORK_STATE, ACCESS_FINE_LOCATION, CAMERA
