@@ -1,4 +1,3 @@
-from kivy.app import App
 from kivymd.app import MDApp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
@@ -13,12 +12,11 @@ WebViewClient = autoclass('android.webkit.WebViewClient')
 WebChromeClient = autoclass('android.webkit.WebChromeClient')
 activity = autoclass('org.kivy.android.PythonActivity').mActivity
 
-class TitaniumSupreme(MDApp):
+class TitaniumRobot(MDApp):
     def build(self):
-        self.theme_cls.primary_palette = "BlueGray"
         Window.bind(on_keyboard=self.on_back_button)
         request_permissions([Permission.INTERNET, Permission.ACCESS_FINE_LOCATION, Permission.CAMERA])
-        Clock.schedule_once(self.init_webview, 1)
+        Clock.schedule_once(self.init_webview, 0.5)
         return BoxLayout()
 
     @run_on_ui_thread
@@ -30,14 +28,14 @@ class TitaniumSupreme(MDApp):
         s.setGeolocationEnabled(True)
         s.setMixedContentMode(0) 
         
-        class SupremeClient(PythonJavaClass):
+        class RobotClient(PythonJavaClass):
             __javainterfaces__ = ['android/webkit/WebViewClient']
             __javacontext__ = 'app'
             def shouldOverrideUrlLoading(self, view, url):
                 view.loadUrl(url)
                 return True
                 
-        self.webview.setWebViewClient(SupremeClient())
+        self.webview.setWebViewClient(RobotClient())
         self.webview.setWebChromeClient(WebChromeClient())
         self.webview.loadUrl('https://delivery-tracking-delta.vercel.app/')
         activity.setContentView(self.webview)
@@ -49,4 +47,4 @@ class TitaniumSupreme(MDApp):
         return False
 
 if __name__ == '__main__':
-    TitaniumSupreme().run()
+    TitaniumRobot().run()
