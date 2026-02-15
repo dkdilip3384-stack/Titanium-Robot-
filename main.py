@@ -6,15 +6,16 @@ from jnius import autoclass, PythonJavaClass
 from kivy.core.window import Window
 from android.permissions import request_permissions, Permission
 
+# Android Components
 WebView = autoclass('android.webkit.WebView')
 activity = autoclass('org.kivy.android.PythonActivity').mActivity
 
-class TitaniumSupreme(MDApp):
+class TitaniumFinal(MDApp):
     def build(self):
         self.theme_cls.theme_style = "Dark"
-        self.theme_cls.primary_palette = "Red"
+        self.theme_cls.primary_palette = "Amber" # Victory Gold
         Window.bind(on_keyboard=self.on_back_button)
-        request_permissions([Permission.INTERNET, Permission.ACCESS_FINE_LOCATION, Permission.CAMERA])
+        request_permissions([Permission.INTERNET])
         Clock.schedule_once(self.init_webview, 0.5)
         return BoxLayout()
 
@@ -29,14 +30,14 @@ class TitaniumSupreme(MDApp):
         s.setAllowFileAccess(True)
         s.setMixedContentMode(0) 
         
-        class SupremeClient(PythonJavaClass):
+        class WebClient(PythonJavaClass):
             __javainterfaces__ = ['android/webkit/WebViewClient']
             __javacontext__ = 'app'
             def shouldOverrideUrlLoading(self, view, url):
                 view.loadUrl(url)
                 return True
                 
-        self.webview.setWebViewClient(SupremeClient())
+        self.webview.setWebViewClient(WebClient())
         self.webview.loadUrl('https://delivery-tracking-delta.vercel.app/')
         activity.setContentView(self.webview)
 
@@ -47,4 +48,4 @@ class TitaniumSupreme(MDApp):
         return False
 
 if __name__ == '__main__':
-    TitaniumSupreme().run()
+    TitaniumFinal().run()
