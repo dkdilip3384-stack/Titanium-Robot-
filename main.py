@@ -1,60 +1,65 @@
 ```python
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.widget import Widget
 from kivy.utils import platform
 from kivy.clock import Clock
 
-class WebViewApp(App):
-    def build(self):
-        return BoxLayout()
+# Configuration for Android-specific components
+if platform == 'android':
+    from jnius import autoclass
+    from android.runnable import run_on_ui_thread
+    
+    # Android Classes
+    WebView = autoclass('android.webkit.WebView')
+    WebViewClient = autoclass('android.webkit.WebViewClient')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+else:
+    # Dummy decorator for non-android platforms
+    def run_on_ui_thread(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
 
-    def on_start(self):
+class MainWidget(Widget):
+    def __init__(self, **kwargs):
+        super(MainWidget, self).__init__(**kwargs)
+        self.webview = None
+        # Delay creation to ensure the window is initialized
+        Clock.schedule_once(self.create_webview, 0)
+
+    @run_on_ui_thread
+    def create_webview(self, *args):
         if platform == 'android':
-            self.start_android_webview()
-
-    def start_android_webview(self):
-        from jnius import autoclass
-        from android.runnable import run_on_ui_thread
-
-        # Android API Imports
-        WebView = autoclass('android.webkit.WebView')
-        WebViewClient = autoclass('android.webkit.WebViewClient')
-        Activity = autoclass('org.kivy.android.PythonActivity').mActivity
-        LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-        LinearLayout = autoclass('android.widget.LinearLayout')
-
-        @run_on_ui_thread
-        def create_webview():
-            # Initialize WebView
-            webview = WebView(Activity)
-            settings = webview.getSettings()
+            activity = PythonActivity.mActivity
+            self.webview = WebView(activity)
             
-            # Enable standard web features to avoid loading failures
+            # Configure WebView Settings for modern web apps (Vercel/Next.js compatibility)
+            settings = self.webview.getSettings()
             settings.setJavaScriptEnabled(True)
             settings.setDomStorageEnabled(True)
-            settings.setDatabaseEnabled(True)
             settings.setAllowFileAccess(True)
-            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
-            settings.setSupportZoom(True)
-            settings.setBuiltInZoomControls(True)
-            settings.setDisplayZoomControls(False)
+            settings.setDatabaseEnabled(True)
+            settings.setUserAgentString("Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
             
-            # Prevent opening external browser
-            webview.setWebViewClient(WebViewClient())
+            # Set Client to handle internal navigation
+            self.webview.setWebViewClient(WebViewClient())
             
-            # Create a layout to hold the WebView
-            layout = LinearLayout(Activity)
-            layout.setOrientation(LinearLayout.VERTICAL)
-            layout.addView(webview, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+            # Load Target URL
+            self.webview.loadUrl('https://delivery-tracking-delta.vercel.app/')
             
-            # Attach to the main Android Activity window
-            Activity.setContentView(layout)
-            
-            # Load the specific URL
-            webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
+            # This line solves SDL2 conflicts by setting the WebView as the primary activity view
+            activity.setContentView(self.webview)
 
-        create_webview()
+class DeliveryTrackerApp(App):
+    def build(self):
+        return MainWidget()
+
+    def on_pause(self):
+        return True
+
+    def on_resume(self):
+        pass
 
 if __name__ == '__main__':
-    WebViewApp().run()
+    DeliveryTrackerApp().run()
 ```
