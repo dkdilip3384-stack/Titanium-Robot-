@@ -9,10 +9,8 @@ from android.permissions import request_permissions, Permission
 WebView = autoclass('android.webkit.WebView')
 activity = autoclass('org.kivy.android.PythonActivity').mActivity
 
-class TitaniumTrust(MDApp):
+class TitaniumVictory(MDApp):
     def build(self):
-        self.theme_cls.theme_style = "Dark"
-        self.theme_cls.primary_palette = "Red"
         Window.bind(on_keyboard=self.on_back_button)
         request_permissions([Permission.INTERNET, Permission.ACCESS_FINE_LOCATION, Permission.CAMERA])
         Clock.schedule_once(self.init_webview, 0.5)
@@ -21,21 +19,20 @@ class TitaniumTrust(MDApp):
     @run_on_ui_thread
     def init_webview(self, *args):
         self.webview = WebView(activity)
-        s = self.webview.getSettings()
-        s.setJavaScriptEnabled(True)
-        s.setDomStorageEnabled(True)
-        s.setDatabaseEnabled(True)
-        s.setGeolocationEnabled(True)
-        s.setMixedContentMode(0) 
+        settings = self.webview.getSettings()
+        settings.setJavaScriptEnabled(True)
+        settings.setDomStorageEnabled(True)
+        settings.setGeolocationEnabled(True)
+        settings.setMixedContentMode(0) 
         
-        class TrustClient(PythonJavaClass):
+        class SimpleWebClient(PythonJavaClass):
             __javainterfaces__ = ['android/webkit/WebViewClient']
             __javacontext__ = 'app'
             def shouldOverrideUrlLoading(self, view, url):
                 view.loadUrl(url)
                 return True
                 
-        self.webview.setWebViewClient(TrustClient())
+        self.webview.setWebViewClient(SimpleWebClient())
         self.webview.loadUrl('https://delivery-tracking-delta.vercel.app/')
         activity.setContentView(self.webview)
 
@@ -46,4 +43,4 @@ class TitaniumTrust(MDApp):
         return False
 
 if __name__ == '__main__':
-    TitaniumTrust().run()
+    TitaniumVictory().run()
