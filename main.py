@@ -6,14 +6,13 @@ from jnius import autoclass, PythonJavaClass
 from kivy.core.window import Window
 from android.permissions import request_permissions, Permission
 
-# Android Components
 WebView = autoclass('android.webkit.WebView')
 activity = autoclass('org.kivy.android.PythonActivity').mActivity
 
-class TitaniumFinal(MDApp):
+class TitaniumV60(MDApp):
     def build(self):
         self.theme_cls.theme_style = "Dark"
-        self.theme_cls.primary_palette = "Amber" # Victory Gold
+        self.theme_cls.primary_palette = "Cyan"
         Window.bind(on_keyboard=self.on_back_button)
         request_permissions([Permission.INTERNET])
         Clock.schedule_once(self.init_webview, 0.5)
@@ -26,18 +25,17 @@ class TitaniumFinal(MDApp):
         s.setJavaScriptEnabled(True)
         s.setDomStorageEnabled(True)
         s.setDatabaseEnabled(True)
-        s.setGeolocationEnabled(True)
         s.setAllowFileAccess(True)
         s.setMixedContentMode(0) 
         
-        class WebClient(PythonJavaClass):
+        class SimpleClient(PythonJavaClass):
             __javainterfaces__ = ['android/webkit/WebViewClient']
             __javacontext__ = 'app'
             def shouldOverrideUrlLoading(self, view, url):
                 view.loadUrl(url)
                 return True
                 
-        self.webview.setWebViewClient(WebClient())
+        self.webview.setWebViewClient(SimpleClient())
         self.webview.loadUrl('https://delivery-tracking-delta.vercel.app/')
         activity.setContentView(self.webview)
 
@@ -48,4 +46,4 @@ class TitaniumFinal(MDApp):
         return False
 
 if __name__ == '__main__':
-    TitaniumFinal().run()
+    TitaniumV60().run()
