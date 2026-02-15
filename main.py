@@ -7,42 +7,43 @@ from kivy.clock import Clock
 class MainApp(App):
     def build(self):
         if platform == 'android':
-            from jnius import autoclass
-            from android.runnable import run_on_ui_thread
-
-            # Native Android Classes
-            WebView = autoclass('android.webkit.WebView')
-            WebViewClient = autoclass('android.webkit.WebViewClient')
-            Activity = autoclass('org.kivy.android.PythonActivity').mActivity
-            LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-            LinearLayout = autoclass('android.widget.LinearLayout')
-            Color = autoclass('android.graphics.Color')
-
-            @run_on_ui_thread
-            def create_webview():
-                # Initialize WebView
-                self.webview = WebView(Activity)
-                self.webview.getSettings().setJavaScriptEnabled(True)
-                self.webview.getSettings().setDomStorageEnabled(True)
-                self.webview.getSettings().setDatabaseEnabled(True)
-                self.webview.setWebViewClient(WebViewClient())
-                self.webview.setBackgroundColor(Color.TRANSPARENT)
-                
-                # Create a layout to house the WebView
-                layout = LinearLayout(Activity)
-                layout.setOrientation(LinearLayout.VERTICAL)
-                layout.addView(self.webview, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-                
-                # Set the layout as the main content view to bypass SDL2 rendering conflicts
-                Activity.setContentView(layout)
-                
-                # Load the URL
-                self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
-
-            create_webview()
-        
-        # Return an empty widget as the Kivy root; the native WebView sits on top
+            Clock.schedule_once(self.init_webview, 0)
         return Widget()
+
+    def init_webview(self, *args):
+        from jnius import autoclass
+        from android.runnable import run_on_ui_thread
+
+        # Android Native Classes
+        WebView = autoclass('android.webkit.WebView')
+        WebViewClient = autoclass('android.webkit.WebViewClient')
+        WebSettings = autoclass('android.webkit.WebSettings')
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        activity = PythonActivity.mActivity
+
+        @run_on_ui_thread
+        def create_and_show():
+            # Initialize WebView instance
+            webview = WebView(activity)
+            settings = webview.getSettings()
+            
+            # Configure settings to prevent rendering/logic conflicts
+            settings.setJavaScriptEnabled(True)
+            settings.setDomStorageEnabled(True)
+            settings.setAllowFileAccess(True)
+            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
+            settings.setCacheMode(WebSettings.LOAD_DEFAULT)
+            
+            # Force URL to open inside the app, not in external browser
+            webview.setWebViewClient(WebViewClient())
+            
+            # Use the full activity window to avoid SDL2 surface overlay issues
+            activity.setContentView(webview)
+            
+            # Load the target URL
+            webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
+
+        create_and_show()
 
     def on_pause(self):
         return True
