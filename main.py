@@ -1,65 +1,67 @@
 ```python
+import kivy
 from kivy.app import App
-from kivy.uix.widget import Widget
 from kivy.utils import platform
+from kivy.uix.widget import Widget
 from kivy.clock import Clock
+from kivy.core.window import Window
 
-# Only import android specific modules if running on Android
+# Logic for Android Native WebView to avoid SDL2 conflicts
 if platform == 'android':
+    from jnius import autoclass, cast
     from android.runnable import run_on_ui_thread
-    from jnius import autoclass
-    
+
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
-    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+    android_activity = autoclass('org.kivy.android.PythonActivity').mActivity
 else:
-    # Dummy decorator for non-android platforms to prevent import errors
-    def run_on_ui_thread(func):
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-        return wrapper
+    # Fallback for desktop testing
+    run_on_ui_thread = lambda x: x
 
-class WebViewApp(App):
-    def build(self):
-        self.root = Widget()
-        return self.root
-
-    def on_start(self):
+class WebViewWidget(Widget):
+    def __init__(self, **kwargs):
+        super(WebViewWidget, self).__init__(**kwargs)
+        self.url = "https://delivery-tracking-delta.vercel.app/"
         if platform == 'android':
-            self.create_webview()
+            Clock.schedule_once(self.create_webview, 0)
 
     @run_on_ui_thread
-    def create_webview(self):
-        # Access the underlying Android Activity
-        activity = PythonActivity.mActivity
-        
-        # Create the Native Android WebView
-        self.webview = WebView(activity)
-        
-        # Configure WebView settings for modern web apps (React/Vercel)
-        settings = self.webview.getSettings()
-        settings.setJavaScriptEnabled(True)
-        settings.setDomStorageEnabled(True)
-        settings.setLoadWithOverviewMode(True)
-        settings.setUseWideViewPort(True)
-        settings.setSupportZoom(True)
-        settings.setBuiltInZoomControls(False)
-        
-        # Prevent opening external browser; stay inside the app
+    def create_webview(self, *args):
+        self.webview = WebView(android_activity)
+        self.webview.getSettings().setJavaScriptEnabled(True)
+        self.webview.getSettings().setDomStorageEnabled(True)
+        self.webview.getSettings().setDatabaseEnabled(True)
+        self.webview.getSettings().setAllowFileAccess(True)
         self.webview.setWebViewClient(WebViewClient())
-        
-        # Load the specific Vercel URL
-        self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
-        
-        # Set the WebView as the main view of the activity (avoids SDL2 layer conflicts)
-        activity.setContentView(self.webview)
+        self.webview.loadUrl(self.url)
+        android_activity.setContentView(self.webview)
 
-    def on_pause(self):
-        return True
+class DeliveryTrackerApp(App):
+    def build(self):
+        self.bind(on_start=self.post_build)
+        return WebViewWidget()
 
-    def on_resume(self):
-        pass
+    def post_build(self, *args):
+        if platform == 'android':
+            Window.bind(on_keyboard=self.back_handler)
+
+    def back_handler(self, window, key, *args):
+        # Handle Android back button to navigate webview history
+        if key == 27:
+            if platform == 'android':
+                self.check_back_history()
+                return True
+        return False
+
+    @run_on_ui_thread
+    def check_back_history(self):
+        # Logic to go back in browser instead of closing app
+        view = App.get_running_app().root.webview
+        if view.canGoBack():
+            view.goBack()
+        else:
+            android_activity.finish()
 
 if __name__ == '__main__':
-    WebViewApp().run()
+    DeliveryTrackerApp().run()
 ```
