@@ -1,67 +1,59 @@
 ```python
 from kivy.app import App
-from kivy.uix.widget import Widget
 from kivy.utils import platform
 from kivy.clock import Clock
 
-class WebViewWidget(Widget):
-    def __init__(self, **kwargs):
-        super(WebViewWidget, self).__init__(**kwargs)
-        if platform == 'android':
-            Clock.schedule_once(self.create_webview, 0)
-
-    def create_webview(self, *args):
-        from jnius import autoclass
-        from android.runnable import run_on_ui_thread
-
-        # Android Native Classes
-        WebView = autoclass('android.webkit.WebView')
-        WebViewClient = autoclass('android.webkit.WebViewClient')
-        Activity = autoclass('org.kivy.android.PythonActivity').mActivity
-        LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-        LinearLayout = autoclass('android.widget.LinearLayout')
-        Color = autoclass('android.graphics.Color')
-
-        @run_on_ui_thread
-        def setup_webview():
-            # Create WebView instance
-            webview = WebView(Activity)
-            webview.getSettings().setJavaScriptEnabled(True)
-            webview.getSettings().setDomStorageEnabled(True)
-            webview.getSettings().setDatabaseEnabled(True)
-            webview.getSettings().setLoadWithOverviewMode(True)
-            webview.getSettings().setUseWideViewPort(True)
-            webview.getSettings().setSupportZoom(True)
-            webview.getSettings().setBuiltInZoomControls(True)
-            webview.getSettings().setDisplay_ZoomControls(False)
-            webview.setWebViewClient(WebViewClient())
-            webview.setBackgroundColor(Color.TRANSPARENT)
-
-            # Create a layout to hold the WebView
-            layout = LinearLayout(Activity)
-            layout.setOrientation(LinearLayout.VERTICAL)
-            
-            # Add WebView to Activity view hierarchy
-            Activity.addContentView(layout, LayoutParams(-1, -1))
-            layout.addView(webview, LayoutParams(-1, -1))
-            
-            # Load Target URL
-            webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
-            
-            # Prevent Kivy from capturing touch events over WebView
-            self.webview = webview
-
-        setup_webview()
+if platform == 'android':
+    from jnius import autoclass
+    from android.runnable import run_on_ui_thread
+    WebView = autoclass('android.webkit.WebView')
+    WebViewClient = autoclass('android.webkit.WebViewClient')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+else:
+    def run_on_ui_thread(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
 
 class MainApp(App):
     def build(self):
-        return WebViewWidget()
+        if platform == 'android':
+            Clock.schedule_once(self.create_webview, 0)
+        return None
+
+    @run_on_ui_thread
+    def create_webview(self, *args):
+        activity = PythonActivity.mActivity
+        self.webview = WebView(activity)
+        settings = self.webview.getSettings()
+        
+        # Enable features required for modern web apps
+        settings.setJavaScriptEnabled(True)
+        settings.setDomStorageEnabled(True)
+        settings.setAllowFileAccess(True)
+        settings.setDatabaseEnabled(True)
+        settings.setAppCacheEnabled(True)
+        settings.setLoadWithOverviewMode(True)
+        settings.setUseWideViewPort(True)
+        settings.setSupportZoom(True)
+        settings.setBuiltInZoomControls(True)
+        settings.setDisplayZoomControls(False)
+        
+        # Set a standard User Agent to prevent mobile blocking
+        user_agent = "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Mobile Safari/537.36"
+        settings.setUserAgentString(user_agent)
+        
+        self.webview.setWebViewClient(WebViewClient())
+        
+        # Replace Kivy's SDL2 view with the Native WebView to avoid conflicts
+        activity.setContentView(self.webview)
+        self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
 
     def on_pause(self):
         return True
 
     def on_resume(self):
-        pass
+        return True
 
 if __name__ == '__main__':
     MainApp().run()
