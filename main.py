@@ -2,53 +2,46 @@
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.clock import Clock
-from kivy.logger import Logger
-from android.runnable import run_on_ui_thread
-from jnius import autoclass
+from kivy.utils import platform
 
-# Android native classes
-WebView = autoclass('android.webkit.WebView')
-WebViewClient = autoclass('android.webkit.WebViewClient')
-LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-LinearLayout = autoclass('android.widget.LinearLayout')
-Activity = autoclass('org.kivy.android.PythonActivity').mActivity
+if platform == 'android':
+    from jnius import autoclass
+    from android.runnable import run_on_ui_thread
 
-class WebViewWidget(Widget):
-    def __init__(self, **kwargs):
-        super(WebViewWidget, self).__init__(**kwargs)
-        self.webview = None
-        # Schedule the creation on the next frame to ensure the window is ready
-        Clock.schedule_once(self.create_webview, 0)
+    WebView = autoclass('android.webkit.WebView')
+    WebViewClient = autoclass('android.webkit.WebViewClient')
+    WebSettings = autoclass('android.webkit.WebSettings')
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+else:
+    # Dummy wrapper for non-android platforms to prevent import errors
+    def run_on_ui_thread(func):
+        return func
+
+class WebViewApp(App):
+    def build(self):
+        self.url = "https://delivery-tracking-delta.vercel.app/"
+        if platform == 'android':
+            Clock.schedule_once(self.create_webview, 0)
+        return Widget()
 
     @run_on_ui_thread
     def create_webview(self, *args):
-        # Create the native WebView
-        self.webview = WebView(Activity)
+        activity = PythonActivity.mActivity
+        webview = WebView(activity)
+        settings = webview.getSettings()
         
-        # Configure WebView Settings for modern web apps (Vercel/React/Next.js)
-        settings = self.webview.getSettings()
+        # Enable essential features for modern web apps
         settings.setJavaScriptEnabled(True)
         settings.setDomStorageEnabled(True)
         settings.setAllowFileAccess(True)
-        settings.setDatabaseEnabled(True)
-        settings.setUserAgentString("Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Mobile Safari/537.36")
+        settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
         
         # Prevent opening in external browser
-        self.webview.setWebViewClient(WebViewClient())
+        webview.setWebViewClient(WebViewClient())
         
-        # Add the WebView to the Activity's content view
-        # This replaces the Kivy SDL2 layout to prevent rendering conflicts
-        Activity.setContentView(self.webview, LayoutParams(
-            LayoutParams.MATCH_PARENT, 
-            LayoutParams.MATCH_PARENT
-        ))
-        
-        # Load the target URL
-        self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
-
-class MainApp(App):
-    def build(self):
-        return WebViewWidget()
+        # Set the WebView as the main content view to avoid SDL2 conflicts
+        activity.setContentView(webview)
+        webview.loadUrl(self.url)
 
     def on_pause(self):
         return True
@@ -57,5 +50,5 @@ class MainApp(App):
         pass
 
 if __name__ == '__main__':
-    MainApp().run()
+    WebViewApp().run()
 ```
