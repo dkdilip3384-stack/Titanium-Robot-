@@ -1,4 +1,4 @@
-name: Titanium V70.0 Final Grace
+name: Titanium V1000 Infinity Core
 on:
   push:
     branches: [ main ]
@@ -6,31 +6,47 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Emergency System Purge
+      - name: ULTRA AGGRESSIVE SDL2 NUKE
         run: |
-          # Kill every trace of system SDL2 to allow Buildozer to build its own
+          # Kill EVERYTHING that identifies as SDL2 in the system folders
           sudo apt-get remove --purge -y libsdl2-dev libsdl2-mixed-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev || true
-          sudo rm -rf /usr/include/SDL2
-          sudo rm -rf /usr/local/include/SDL2
+          sudo find /usr -name "*sdl2*" -exec sudo rm -rf {} + || true
+          sudo find /usr/local -name "*sdl2*" -exec sudo rm -rf {} + || true
+          sudo rm -f /usr/bin/sdl2-config || true
+          sudo rm -f /usr/local/bin/sdl2-config || true
           sudo apt-get autoremove -y
           sudo apt-get autoclean
+          
+          # Force install only minimal build requirements
+          pip install --upgrade pip
           pip install --upgrade buildozer cython==0.29.33
-      - name: Simplified Build Execution
+      - name: Infinity Build Execution
         run: |
-          # Clean any old state first
+          # Clean old artifacts and force a fresh isolation
           rm -rf .buildozer
+          rm -f buildozer.spec
+          # Re-create spec on the fly to ensure 100% cleanliness
+          buildozer init
+          sed -i 's/requirements = python3,kivy/requirements = python3,kivy==2.3.0,kivymd/' buildozer.spec
+          sed -i 's/#android.api = 31/android.api = 33/' buildozer.spec
+          sed -i 's/#android.minapi = 21/android.minapi = 24/' buildozer.spec
+          sed -i 's/#android.ndk = 25b/android.ndk = 25b/' buildozer.spec
+          sed -i 's/package.name = myapp/package.name = titanium.v1000/' buildozer.spec
+          sed -i 's/title = My Application/title = Titanium V1000/' buildozer.spec
+          
+          # The Final Strike
           yes y | buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: '1'
-      - name: Deliver Final APK
+      - name: Deploy Infinity APK
         uses: actions/upload-artifact@v4
         with:
-          name: Titanium-V70-Final-APK
+          name: Titanium-V1000-Success-APK
           path: bin/*.apk
