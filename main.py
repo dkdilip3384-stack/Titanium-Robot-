@@ -1,23 +1,14 @@
 ```python
-import kivy
 from kivy.app import App
-from kivy.utils import platform
 from kivy.uix.widget import Widget
+from kivy.utils import platform
 from kivy.clock import Clock
 
+# Only import android specific modules if running on Android
 if platform == 'android':
+    from android.run_on_ui_thread import run_on_ui_thread
     from jnius import autoclass
-    from android.runnable import run_on_ui_thread
-
-    # Android class mappings
-    WebView = autoclass('android.webkit.WebView')
-    WebViewClient = autoclass('android.webkit.WebViewClient')
-    PythonActivity = autoclass('org.kivy.android.PythonActivity')
-    LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-    LinearLayout = autoclass('android.view.LinearLayout')
-    WebSettings = autoclass('android.webkit.WebSettings')
 else:
-    # Dummy decorator for non-android platforms
     def run_on_ui_thread(func):
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
@@ -25,44 +16,50 @@ else:
 
 class MainApp(App):
     def build(self):
-        # Return an empty widget as Kivy root; WebView will sit on top or replace view
-        return Widget()
-
-    def on_start(self):
+        self.root = Widget()
         if platform == 'android':
-            self.init_webview()
+            Clock.schedule_once(self.create_webview, 0)
+        return self.root
 
     @run_on_ui_thread
-    def init_webview(self):
-        # Get the current Android Activity
+    def create_webview(self, *args):
+        # Access Android API via Pyjnius
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        WebView = autoclass('android.webkit.WebView')
+        WebViewClient = autoclass('android.webkit.WebViewClient')
+        LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+        LinearLayout = autoclass('android.view.LinearLayout')
+        Color = autoclass('android.graphics.Color')
+
         activity = PythonActivity.mActivity
         
-        # Create WebView instance
+        # Initialize WebView
         self.webview = WebView(activity)
-        
-        # Configure WebView settings for modern web apps
-        settings = self.webview.getSettings()
-        settings.setJavaScriptEnabled(True)
-        settings.setDomStorageEnabled(True)
-        settings.setDatabaseEnabled(True)
-        settings.setAppCacheEnabled(True)
-        settings.setLoadsImagesAutomatically(True)
-        settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
-        
-        # Prevent external browser from opening the URL
+        self.webview.getSettings().setJavaScriptEnabled(True)
+        self.webview.getSettings().setDomStorageEnabled(True)
+        self.webview.getSettings().setDatabaseEnabled(True)
         self.webview.setWebViewClient(WebViewClient())
+        self.webview.setBackgroundColor(Color.TRANSPARENT)
         
-        # Set the WebView as the main content view to avoid SDL2/OpenGL conflicts
-        activity.setContentView(self.webview)
+        # Define layout parameters for full screen
+        layout_params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        
+        # Add the WebView directly to the activity content view to bypass SDL2 GL conflicts
+        activity.addContentView(self.webview, layout_params)
         
         # Load the target URL
         self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
 
     def on_pause(self):
+        if platform == 'android' and hasattr(self, 'webview'):
+            self.webview.pauseTimers()
+            self.webview.onPause()
         return True
 
     def on_resume(self):
-        pass
+        if platform == 'android' and hasattr(self, 'webview'):
+            self.webview.onResume()
+            self.webview.resumeTimers()
 
 if __name__ == '__main__':
     MainApp().run()
