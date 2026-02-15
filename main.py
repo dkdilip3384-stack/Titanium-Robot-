@@ -3,59 +3,53 @@ from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.utils import platform
 from kivy.clock import Clock
-from kivy.core.window import Window
 
-class WebViewApp(App):
+class MainApp(App):
     def build(self):
-        self.url = "https://delivery-tracking-delta.vercel.app/"
         if platform == 'android':
-            Clock.schedule_once(self.create_webview, 0)
+            from jnius import autoclass
+            from android.runnable import run_on_ui_thread
+
+            # Native Android Classes
+            WebView = autoclass('android.webkit.WebView')
+            WebViewClient = autoclass('android.webkit.WebViewClient')
+            Activity = autoclass('org.kivy.android.PythonActivity').mActivity
+            LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+            LinearLayout = autoclass('android.widget.LinearLayout')
+            Color = autoclass('android.graphics.Color')
+
+            @run_on_ui_thread
+            def create_webview():
+                # Initialize WebView
+                self.webview = WebView(Activity)
+                self.webview.getSettings().setJavaScriptEnabled(True)
+                self.webview.getSettings().setDomStorageEnabled(True)
+                self.webview.getSettings().setDatabaseEnabled(True)
+                self.webview.setWebViewClient(WebViewClient())
+                self.webview.setBackgroundColor(Color.TRANSPARENT)
+                
+                # Create a layout to house the WebView
+                layout = LinearLayout(Activity)
+                layout.setOrientation(LinearLayout.VERTICAL)
+                layout.addView(self.webview, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+                
+                # Set the layout as the main content view to bypass SDL2 rendering conflicts
+                Activity.setContentView(layout)
+                
+                # Load the URL
+                self.webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
+
+            create_webview()
+        
+        # Return an empty widget as the Kivy root; the native WebView sits on top
         return Widget()
 
-    def create_webview(self, *args):
-        from jnius import autoclass
-        from android.runnable import run_on_ui_thread
+    def on_pause(self):
+        return True
 
-        # Android classes
-        WebView = autoclass('android.webkit.WebView')
-        WebViewClient = autoclass('android.webkit.WebViewClient')
-        WebSettings = autoclass('android.webkit.WebSettings')
-        PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        activity = PythonActivity.mActivity
-
-        @run_on_ui_thread
-        def setup_webview():
-            webview = WebView(activity)
-            settings = webview.getSettings()
-            
-            # Enable features for modern web apps (React/Vercel)
-            settings.setJavaScriptEnabled(True)
-            settings.setDomStorageEnabled(True)
-            settings.setDatabaseEnabled(True)
-            settings.setAllowFileAccess(True)
-            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
-            settings.setCacheMode(WebSettings.LOAD_DEFAULT)
-            settings.setUserAgentString("Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Mobile Safari/537.36")
-
-            # Prevent SDL2/Kivy layout overlap
-            webview.setWebViewClient(WebViewClient())
-            activity.setContentView(webview)
-            webview.loadUrl(self.url)
-            
-            # Handle Android Back Button
-            self.webview = webview
-            Window.bind(on_keyboard=self.on_key_down)
-
-        setup_webview()
-
-    def on_key_down(self, window, key, scancode, codepoint, modifier):
-        if key == 27:  # Back button
-            if platform == 'android' and hasattr(self, 'webview'):
-                if self.webview.canGoBack():
-                    self.webview.goBack()
-                    return True
-        return False
+    def on_resume(self):
+        pass
 
 if __name__ == '__main__':
-    WebViewApp().run()
+    MainApp().run()
 ```
