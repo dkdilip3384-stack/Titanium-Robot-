@@ -1,70 +1,76 @@
 ```python
 from kivy.app import App
-from kivy.uix.widget import Widget
-from kivy.clock import Clock
+from kivy.uix.floatlayout import FloatLayout
 from kivy.utils import platform
+from kivy.core.window import Window
 
-# Conditional imports to prevent crashes on non-Android systems during dev
-if platform == 'android':
-    from android.run_on_ui_thread import run_on_ui_thread
-    from jnius import autoclass, cast
-    
-    WebView = autoclass('android.webkit.WebView')
-    WebViewClient = autoclass('android.webkit.WebViewClient')
-    LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
-    LinearLayout = autoclass('android.widget.LinearLayout')
-    PythonActivity = autoclass('org.kivy.android.PythonActivity')
-else:
-    # Dummy decorator for desktop testing
-    def run_on_ui_thread(func):
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-        return wrapper
-
-class MainApp(App):
+class DeliveryTrackerApp(App):
     def build(self):
-        self.webview = None
-        # Schedule the WebView creation after the Kivy window is ready
-        Clock.schedule_once(self.create_webview, 0)
-        return Widget()
+        # Create a basic layout; on Android, the WebView will overlay this.
+        return FloatLayout()
 
-    @run_on_ui_thread
-    def create_webview(self, *args):
-        # Access the Android Activity
+    def on_start(self):
+        if platform == 'android':
+            self.init_android_webview()
+
+    def init_android_webview(self):
+        from jnius import autoclass
+        from android.runnable import run_on_ui_thread
+
+        # Standard Android/Kivy classes
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        WebView = autoclass('android.webkit.WebView')
+        WebViewClient = autoclass('android.webkit.WebViewClient')
+        WebSettings = autoclass('android.webkit.WebSettings')
+        
         activity = PythonActivity.mActivity
-        
-        # Initialize WebView
-        webview = WebView(activity)
-        settings = webview.getSettings()
-        
-        # Standard configuration for modern web apps
-        settings.setJavaScriptEnabled(True)
-        settings.setDomStorageEnabled(True)
-        settings.setAllowFileAccess(True)
-        settings.setJavaScriptCanOpenWindowsAutomatically(True)
-        settings.setDatabaseEnabled(True)
-        
-        # Ensure links stay inside the app
-        webview.setWebViewClient(WebViewClient())
-        
-        # Load the target URL
-        webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
-        
-        # Set the layout and add to activity
-        layout = LinearLayout(activity)
-        layout.addView(webview, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        activity.setContentView(layout)
-        
-        # Keep a reference
-        self.webview = webview
+
+        @run_on_ui_thread
+        def create_webview():
+            # Initialize WebView instance
+            webview = WebView(activity)
+            settings = webview.getSettings()
+            
+            # Enable essential features for modern web apps
+            settings.setJavaScriptEnabled(True)
+            settings.setDomStorageEnabled(True)
+            settings.setAllowFileAccess(True)
+            settings.setLoadsImagesAutomatically(True)
+            settings.setDatabaseEnabled(True)
+            settings.setSupportZoom(True)
+            settings.setBuiltInZoomControls(True)
+            settings.setDisplayZoomControls(False)
+            
+            # Prevent external browser from opening links
+            webview.setWebViewClient(WebViewClient())
+            
+            # Force the WebView to occupy the full Activity screen to avoid SDL2 conflicts
+            activity.setContentView(webview)
+            
+            # Load target URL
+            webview.loadUrl("https://delivery-tracking-delta.vercel.app/")
+            
+            # Store reference for back button handling
+            self.webview = webview
+
+        create_webview()
+        Window.bind(on_keyboard=self.on_back_button)
+
+    def on_back_button(self, window, key, *args):
+        # Handle Android physical back button (Key code 27)
+        if key == 27:
+            if platform == 'android' and hasattr(self, 'webview'):
+                if self.webview.canGoBack():
+                    self.webview.goBack()
+                    return True
+        return False
 
     def on_pause(self):
-        # Prevent the app from closing when switched to background
         return True
 
     def on_resume(self):
         pass
 
 if __name__ == '__main__':
-    MainApp().run()
+    DeliveryTrackerApp().run()
 ```
